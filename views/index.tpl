@@ -10,9 +10,9 @@
     <div class="container">
         <nav>
             <ul>
-                <li><a href="#" id="voting"><span class="icon">↕</span> Voting</a></li>
+                <li><a href="#" id="voting"><span class="icon">↑↓</span> Voting</a></li>
                 <li><a href="#" id="breeds"><span class="icon">🔍</span> Breeds</a></li>
-                <li><a href="#" id="favs"><span class="icon">♡</span> Favs</a></li>
+                <li><a href="#" id="favs"><span class="icon">❤️</span> Favs</a></li>
             </ul>
             <div class="view-toggle">
                 <button class="grid-view active">☰</button>
