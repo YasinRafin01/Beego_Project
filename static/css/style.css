@@ -1,0 +1,264 @@
+body {
+    font-family: 'Roboto', Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: white;
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+nav ul {
+    display: flex;
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+nav ul li {
+    margin-right: 25px;
+}
+
+nav ul li a {
+    text-decoration: none;
+    color: #555;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+nav ul li a:hover {
+    color: #ff4081;
+}
+
+nav ul li a .icon {
+    margin-right: 8px;
+    font-size: 1.2em;
+}
+
+.view-toggle button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #555;
+    transition: color 0.3s ease;
+}
+
+.view-toggle button.active {
+    color: #ff4081;
+}
+
+/* #breed-search {
+    position: relative;
+    margin-bottom: 25px;
+} */
+
+#breed-input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+#breed-input:focus {
+    outline: none;
+    border-color: #ff4081;
+}
+
+#breed-close {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: #999;
+    transition: color 0.3s ease;
+}
+
+#breed-close:hover {
+    color: #ff4081;
+}
+
+#cat-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    margin-left: 250px;
+}
+
+#cat-container.list-view {
+    display: flex;
+    flex-direction: column;
+    margin-right: 200px;
+}
+
+#cat-container img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 10px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#cat-container img:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+#breed-info {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+}
+
+.voting-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 25px;
+}
+
+.voting-buttons button {
+    font-size: 28px;
+    margin: 0 15px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.voting-buttons button:hover {
+    transform: scale(1.2);
+}
+
+.cat-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.heart-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(255, 255, 255, 0.7);
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #ff4081;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.heart-button:hover {
+    background-color: white;
+    transform: scale(1.1);
+}
+
+.breed-search-container {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 20px auto;
+}
+
+.breed-search-input {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#breed-input {
+    flex-grow: 1;
+    padding: 10px;
+    border: none;
+    font-size: 16px;
+}
+
+#breed-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.breed-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    display: none;
+}
+
+.breed-list.show {
+    display: block;
+}
+
+.breed-item {
+    padding: 10px;
+    cursor: pointer;
+}
+
+.breed-item:hover {
+    background-color: #f0f0f0;
+}
+
+.breed-item.selected {
+    background-color: #e0e0e0;
+}
+
+#breed-images {
+    display: flex;
+    overflow-x: scroll;
+    white-space: nowrap;
+}
+
+#breed-images img {
+    width: 400px; /* Set your desired width */
+    height: 400px; /* Set your desired height */
+    object-fit: cover; /* Ensures the image covers the area without distortion */
+    margin-right: 10px; /* Spacing between images */
+    margin-left: 100px;
+}
+
+#breed-images::-webkit-scrollbar {
+    display: none; /* Hide the scrollbar for a cleaner look */
+}
