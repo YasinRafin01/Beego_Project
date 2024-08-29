@@ -66,11 +66,6 @@ nav ul li a .icon {
     color: #ff4081;
 }
 
-/* #breed-search {
-    position: relative;
-    margin-bottom: 25px;
-} */
-
 #breed-input {
     width: 100%;
     padding: 12px 40px 12px 15px;
@@ -164,7 +159,7 @@ nav ul li a .icon {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 1);
     border: none;
     font-size: 24px;
     cursor: pointer;
@@ -179,9 +174,11 @@ nav ul li a .icon {
 }
 
 .heart-button:hover {
-    background-color: white;
+    background-color:white;
     transform: scale(1.1);
 }
+
+
 
 .breed-search-container {
     position: relative;
@@ -252,13 +249,83 @@ nav ul li a .icon {
 }
 
 #breed-images img {
-    width: 400px; /* Set your desired width */
-    height: 400px; /* Set your desired height */
-    object-fit: cover; /* Ensures the image covers the area without distortion */
-    margin-right: 10px; /* Spacing between images */
+    width: 400px; 
+    height: 400px; 
+    object-fit: cover; 
+    margin-right: 10px; 
     margin-left: 100px;
 }
 
 #breed-images::-webkit-scrollbar {
-    display: none; /* Hide the scrollbar for a cleaner look */
+    display: none; 
+}
+
+/* Media Queries for Responsiveness */
+@media screen and (max-width: 1024px) {
+    #cat-container {
+        margin-left: 150px;
+        gap: 15px;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .container {
+        padding: 20px;
+    }
+
+    nav ul li {
+        margin-right: 15px;
+    }
+
+    #cat-container {
+        margin-left: 0;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+
+    #breed-images img {
+        width: 300px;
+        height: 300px;
+        margin-left: 50px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+
+    nav ul {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    nav ul li {
+        margin-bottom: 10px;
+        margin-right: 0;
+    }
+
+    nav {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .view-toggle {
+        margin-top: 10px;
+        align-self: flex-end;
+    }
+
+    #cat-container {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    #cat-container.list-view {
+        margin-right: 0;
+    }
+
+    #breed-images img {
+        width: 100%;
+        height: auto;
+        margin-left: 0;
+    }
 }
