@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const heartButton = document.createElement('button');
         heartButton.className = 'heart-button';
-        heartButton.innerHTML = isFavorite(cat.id) ? '❤️' : '♡';
+        heartButton.innerHTML = '❤️';
         heartButton.addEventListener('click', (event) => {
             event.stopPropagation();
             toggleFavorite(cat);
