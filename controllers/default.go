@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/beego/beego/v2/core/logs"
+	//beego "github.com/beego/beego/v2/core/logs"
 	beego "github.com/beego/beego/v2/server/web"
 )
 
@@ -26,9 +28,24 @@ type Breed struct {
 	Description string `json:"description"`
 	Origin      string `json:"origin"`
 }
+type FavoriteData struct {
+	ImageID string `json:"image_id"`
+	SubID   string `json:"sub_id"`
+}
+
+type FavoriteResponse struct {
+	ID string `json:"id"`
+}
 
 func (c *MainController) Get() {
 	c.TplName = "index.tpl"
+}
+func getAPIKey() string {
+	apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
+	if apiKey == "" {
+		logs.Error("API key is not set in the configuration")
+	}
+	return apiKey
 }
 
 func (c *MainController) GetRandomCats() {
@@ -110,7 +127,7 @@ func (c *MainController) RecordVote() {
 		return
 	}
 
-	apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
+	apiKey, _ := beego.AppConfig.String("cat_api_key")
 	url := "https://api.thecatapi.com/v1/votes"
 
 	jsonData, _ := json.Marshal(voteData)
@@ -133,7 +150,7 @@ func (c *MainController) RecordVote() {
 
 func (c *MainController) GetVotes() {
 	subID := c.GetString("sub_id")
-	apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
+	apiKey, _ := beego.AppConfig.String("cat_api_key")
 	url := fmt.Sprintf("https://api.thecatapi.com/v1/votes?sub_id=%s", subID)
 
 	req, _ := http.NewRequest("GET", url, nil)
@@ -151,3 +168,147 @@ func (c *MainController) GetVotes() {
 	body, _ := ioutil.ReadAll(resp.Body)
 	c.Ctx.Output.Body(body)
 }
+func (c *MainController) GetConfig() {
+	apiKey, _ := beego.AppConfig.String("cat_api_key")
+
+	config := map[string]string{
+		"catapi_key": apiKey,
+	}
+	c.Data["json"] = config
+	c.ServeJSON()
+
+}
+
+// New function to add a favorite
+func (c *MainController) AddFavorite() {
+	var favoriteData FavoriteData
+	if err := json.Unmarshal(c.Ctx.Input.RequestBody, &favoriteData); err != nil {
+		c.Data["json"] = map[string]string{"error": "Invalid request body"}
+		c.ServeJSON()
+		return
+	}
+
+	apiKey := getAPIKey()
+	if apiKey == "" {
+		c.Data["json"] = map[string]string{"error": "API key is not configured"}
+		c.ServeJSON()
+		return
+	}
+
+	url := "https://api.thecatapi.com/v1/favourites"
+	jsonData, _ := json.Marshal(favoriteData)
+
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Data["json"] = map[string]string{"error": err.Error()}
+		c.ServeJSON()
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		c.Data["json"] = map[string]interface{}{
+			"error":  fmt.Sprintf("API Error: %s", string(body)),
+			"status": resp.StatusCode,
+		}
+		c.ServeJSON()
+		return
+	}
+
+	var favoriteResponse FavoriteResponse
+	if err := json.Unmarshal(body, &favoriteResponse); err != nil {
+		c.Data["json"] = map[string]string{"error": "Failed to parse API response"}
+		c.ServeJSON()
+		return
+	}
+
+	c.Data["json"] = favoriteResponse
+	c.ServeJSON()
+}
+
+func (c *MainController) GetFavorites() {
+	subID := c.GetString("sub_id")
+	apiKey := getAPIKey()
+	if apiKey == "" {
+		c.Data["json"] = map[string]string{"error": "API key is not configured"}
+		c.ServeJSON()
+		return
+	}
+	fmt.Println(apiKey)
+	url := fmt.Sprintf("https://api.thecatapi.com/v1/favourites?sub_id=%s", subID)
+
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Set("x-api-key", apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Data["json"] = map[string]string{"error": err.Error()}
+		c.ServeJSON()
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		c.Data["json"] = map[string]interface{}{
+			"error":  fmt.Sprintf("API Error: %s", string(body)),
+			"status": resp.StatusCode,
+		}
+		c.ServeJSON()
+		return
+	}
+
+	var favorites []map[string]interface{}
+	if err := json.Unmarshal(body, &favorites); err != nil {
+		c.Data["json"] = []map[string]interface{}{} // Return empty array if parsing fails
+	} else {
+		c.Data["json"] = favorites
+	}
+	c.ServeJSON()
+}
+
+// New function to delete a favorite
+func (c *MainController) DeleteFavorite() {
+	favoriteID := c.Ctx.Input.Param(":favoriteId")
+	//apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
+	url := fmt.Sprintf("https://api.thecatapi.com/v1/favourites/%s", favoriteID)
+
+	req, _ := http.NewRequest("DELETE", url, nil)
+	req.Header.Set("Content-Type", "application/json")
+	//setAPIKeyHeader(req)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		c.Data["json"] = map[string]string{"error": err.Error()}
+		c.ServeJSON()
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse map[string]interface{}
+		json.Unmarshal(body, &errorResponse)
+		c.Data["json"] = map[string]interface{}{
+			"error":  fmt.Sprintf("API Error: %v", errorResponse),
+			"status": resp.StatusCode,
+		}
+		c.ServeJSON()
+		return
+	}
+
+	c.Data["json"] = map[string]string{"message": "Favorite deleted successfully"}
+	c.ServeJSON()
+}
+
