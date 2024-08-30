@@ -36,10 +36,16 @@ type FavoriteData struct {
 type FavoriteResponse struct {
 	ID string `json:"id"`
 }
+type VoteData struct {
+	ImageID string `json:"image_id"`
+	SubID   string `json:"sub_id"`
+	Value   int    `json:"value"`
+}
 
 func (c *MainController) Get() {
 	c.TplName = "index.tpl"
 }
+
 func getAPIKey() string {
 	apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
 	if apiKey == "" {
@@ -48,75 +54,73 @@ func getAPIKey() string {
 	return apiKey
 }
 
-func (c *MainController) GetRandomCats() {
-	count, _ := c.GetInt("count", 1)
-	breedIds := c.GetString("breed_ids")
-	apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
-	catsChan := make(chan []CatImage)
-
+func makeAPIRequest(method, url string, body []byte, apiKey string) chan *http.Response {
+	responseChan := make(chan *http.Response)
 	go func() {
-		url := fmt.Sprintf("https://api.thecatapi.com/v1/images/search?limit=%d", count)
-		if breedIds != "" {
-			url += fmt.Sprintf("&breed_ids=%s", breedIds)
-		}
-		req, _ := http.NewRequest("GET", url, nil)
-		req.Header.Add("x-api-key", apiKey)
+		req, _ := http.NewRequest(method, url, bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-api-key", apiKey)
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			c.Data["json"] = map[string]string{"error": err.Error()}
-			c.ServeJSON()
-			return
+			logs.Error("Error making API request:", err)
+			responseChan <- nil
+		} else {
+			responseChan <- resp
 		}
-		defer resp.Body.Close()
-
-		body, _ := ioutil.ReadAll(resp.Body)
-		var cats []CatImage
-		json.Unmarshal(body, &cats)
-
-		catsChan <- cats
 	}()
+	return responseChan
+}
 
-	cats := <-catsChan
+func (c *MainController) GetRandomCats() {
+	count, _ := c.GetInt("count", 1)
+	breedIds := c.GetString("breed_ids")
+	apiKey := getAPIKey()
+
+	url := fmt.Sprintf("https://api.thecatapi.com/v1/images/search?limit=%d", count)
+	if breedIds != "" {
+		url += fmt.Sprintf("&breed_ids=%s", breedIds)
+	}
+
+	responseChan := makeAPIRequest("GET", url, nil, apiKey)
+	resp := <-responseChan
+
+	if resp == nil {
+		c.Data["json"] = map[string]string{"error": "Failed to make API request"}
+		c.ServeJSON()
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	var cats []CatImage
+	json.Unmarshal(body, &cats)
+
 	c.Data["json"] = cats
 	c.ServeJSON()
 }
 
 func (c *MainController) GetCatBreeds() {
-	apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
-	breedsChan := make(chan []map[string]interface{})
+	apiKey := getAPIKey()
+	url := "https://api.thecatapi.com/v1/breeds"
 
-	go func() {
-		url := "https://api.thecatapi.com/v1/breeds"
-		req, _ := http.NewRequest("GET", url, nil)
-		req.Header.Add("x-api-key", apiKey)
+	responseChan := makeAPIRequest("GET", url, nil, apiKey)
+	resp := <-responseChan
 
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			c.Data["json"] = map[string]string{"error": err.Error()}
-			c.ServeJSON()
-			return
-		}
-		defer resp.Body.Close()
+	if resp == nil {
+		c.Data["json"] = map[string]string{"error": "Failed to make API request"}
+		c.ServeJSON()
+		return
+	}
+	defer resp.Body.Close()
 
-		body, _ := ioutil.ReadAll(resp.Body)
-		var breeds []map[string]interface{}
-		json.Unmarshal(body, &breeds)
+	body, _ := ioutil.ReadAll(resp.Body)
+	var breeds []map[string]interface{}
+	json.Unmarshal(body, &breeds)
 
-		breedsChan <- breeds
-	}()
-
-	breeds := <-breedsChan
 	c.Data["json"] = breeds
 	c.ServeJSON()
-}
-
-type VoteData struct {
-	ImageID string `json:"image_id"`
-	SubID   string `json:"sub_id"`
-	Value   int    `json:"value"`
 }
 
 func (c *MainController) RecordVote() {
@@ -127,18 +131,15 @@ func (c *MainController) RecordVote() {
 		return
 	}
 
-	apiKey, _ := beego.AppConfig.String("cat_api_key")
+	apiKey := getAPIKey()
 	url := "https://api.thecatapi.com/v1/votes"
-
 	jsonData, _ := json.Marshal(voteData)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", apiKey)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.Data["json"] = map[string]string{"error": err.Error()}
+	responseChan := makeAPIRequest("POST", url, jsonData, apiKey)
+	resp := <-responseChan
+
+	if resp == nil {
+		c.Data["json"] = map[string]string{"error": "Failed to make API request"}
 		c.ServeJSON()
 		return
 	}
@@ -150,16 +151,14 @@ func (c *MainController) RecordVote() {
 
 func (c *MainController) GetVotes() {
 	subID := c.GetString("sub_id")
-	apiKey, _ := beego.AppConfig.String("cat_api_key")
+	apiKey := getAPIKey()
 	url := fmt.Sprintf("https://api.thecatapi.com/v1/votes?sub_id=%s", subID)
 
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("x-api-key", apiKey)
+	responseChan := makeAPIRequest("GET", url, nil, apiKey)
+	resp := <-responseChan
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.Data["json"] = map[string]string{"error": err.Error()}
+	if resp == nil {
+		c.Data["json"] = map[string]string{"error": "Failed to make API request"}
 		c.ServeJSON()
 		return
 	}
@@ -168,18 +167,16 @@ func (c *MainController) GetVotes() {
 	body, _ := ioutil.ReadAll(resp.Body)
 	c.Ctx.Output.Body(body)
 }
-func (c *MainController) GetConfig() {
-	apiKey, _ := beego.AppConfig.String("cat_api_key")
 
+func (c *MainController) GetConfig() {
+	apiKey := getAPIKey()
 	config := map[string]string{
 		"catapi_key": apiKey,
 	}
 	c.Data["json"] = config
 	c.ServeJSON()
-
 }
 
-// New function to add a favorite
 func (c *MainController) AddFavorite() {
 	var favoriteData FavoriteData
 	if err := json.Unmarshal(c.Ctx.Input.RequestBody, &favoriteData); err != nil {
@@ -189,23 +186,14 @@ func (c *MainController) AddFavorite() {
 	}
 
 	apiKey := getAPIKey()
-	if apiKey == "" {
-		c.Data["json"] = map[string]string{"error": "API key is not configured"}
-		c.ServeJSON()
-		return
-	}
-
 	url := "https://api.thecatapi.com/v1/favourites"
 	jsonData, _ := json.Marshal(favoriteData)
 
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", apiKey)
+	responseChan := makeAPIRequest("POST", url, jsonData, apiKey)
+	resp := <-responseChan
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.Data["json"] = map[string]string{"error": err.Error()}
+	if resp == nil {
+		c.Data["json"] = map[string]string{"error": "Failed to make API request"}
 		c.ServeJSON()
 		return
 	}
@@ -236,21 +224,13 @@ func (c *MainController) AddFavorite() {
 func (c *MainController) GetFavorites() {
 	subID := c.GetString("sub_id")
 	apiKey := getAPIKey()
-	if apiKey == "" {
-		c.Data["json"] = map[string]string{"error": "API key is not configured"}
-		c.ServeJSON()
-		return
-	}
-	fmt.Println(apiKey)
 	url := fmt.Sprintf("https://api.thecatapi.com/v1/favourites?sub_id=%s", subID)
 
-	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("x-api-key", apiKey)
+	responseChan := makeAPIRequest("GET", url, nil, apiKey)
+	resp := <-responseChan
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.Data["json"] = map[string]string{"error": err.Error()}
+	if resp == nil {
+		c.Data["json"] = map[string]string{"error": "Failed to make API request"}
 		c.ServeJSON()
 		return
 	}
@@ -276,32 +256,28 @@ func (c *MainController) GetFavorites() {
 	c.ServeJSON()
 }
 
-// New function to delete a favorite
 func (c *MainController) DeleteFavorite() {
 	favoriteID := c.Ctx.Input.Param(":favoriteId")
-	//apiKey := beego.AppConfig.DefaultString("cat_api_key", "")
+	apiKey := getAPIKey()
 	url := fmt.Sprintf("https://api.thecatapi.com/v1/favourites/%s", favoriteID)
 
-	req, _ := http.NewRequest("DELETE", url, nil)
-	req.Header.Set("Content-Type", "application/json")
-	//setAPIKeyHeader(req)
+	responseChan := makeAPIRequest("DELETE", url, nil, apiKey)
+	resp := <-responseChan
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		c.Data["json"] = map[string]string{"error": err.Error()}
+	if resp == nil {
+		c.Data["json"] = map[string]string{"error": "Failed to make API request"}
 		c.ServeJSON()
 		return
 	}
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
+	logs.Info("Response status:", resp.Status)
+	logs.Info("Response body:", string(body))
 
 	if resp.StatusCode != http.StatusOK {
-		var errorResponse map[string]interface{}
-		json.Unmarshal(body, &errorResponse)
 		c.Data["json"] = map[string]interface{}{
-			"error":  fmt.Sprintf("API Error: %v", errorResponse),
+			"error":  fmt.Sprintf("API Error: %s", string(body)),
 			"status": resp.StatusCode,
 		}
 		c.ServeJSON()
@@ -311,4 +287,3 @@ func (c *MainController) DeleteFavorite() {
 	c.Data["json"] = map[string]string{"message": "Favorite deleted successfully"}
 	c.ServeJSON()
 }
-
