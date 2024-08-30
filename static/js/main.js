@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const listViewButton = document.querySelector('.list-view');
 
     let allBreeds = [];
+    let config={};
 
     // Generate a unique user ID
     const userId = localStorage.getItem('userId') || `user-${Date.now()}`;
@@ -28,32 +29,35 @@ document.addEventListener('DOMContentLoaded', () => {
     breedInput.addEventListener('input', handleBreedSearch);
     breedList.addEventListener('click', handleBreedSelection);
 
+    function loadConfig(){
+        return $.get('/api/config',function(data){
+            config=data;
+        });
+    }
+
     function showVoting() {
         breedSearch.style.display = 'none';
         breedInfo.style.display = 'none';
         votingButtons.style.display = 'flex';
-        catContainer.style.display = 'grid'; // Display cat container
-        // Clear any existing cat content
+        catContainer.style.display = 'grid';
         catContainer.innerHTML = '';
         getRandomCats(1);
     }
-    
+
     function showBreeds() {
         breedSearch.style.display = 'block';
         breedInfo.style.display = 'block';
         votingButtons.style.display = 'none';
-        catContainer.style.display = 'grid'; // Display cat container
-        // Clear any existing cat content
+        catContainer.style.display = 'grid';
         catContainer.innerHTML = '';
         populateBreeds();
     }
-    
+
     function showFavs() {
         breedSearch.style.display = 'none';
         breedInfo.style.display = 'none';
         votingButtons.style.display = 'none';
-        catContainer.style.display = 'grid'; // Display cat container
-        // Clear any existing cat content
+        catContainer.style.display = 'grid';
         catContainer.innerHTML = '';
         displayFavoriteCats();
     }
@@ -113,31 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function createCatElement(cat) {
-        const catElement = document.createElement('div');
-        catElement.className = 'cat-item';
-        catElement.dataset.id = cat.id;
-
-        const img = document.createElement('img');
-        img.src = cat.url;
-        img.alt = 'Cat';
-
-        const heartButton = document.createElement('button');
-        heartButton.className = 'heart-button';
-        heartButton.innerHTML = '❤️';
-        heartButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            toggleFavorite(cat);
-            //getRandomCats(1);
-            showVoting()
-        });
-
-        catElement.appendChild(img);
-        catElement.appendChild(heartButton);
-
-        return catElement;
-    }
-
     function displayBreeds(breeds) {
         breedList.innerHTML = '';
         breeds.forEach(breed => {
@@ -154,14 +133,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('breed-name').textContent = `${breed.name} (${breed.origin}) ${breed.alt_names || ''}`;
         document.getElementById('breed-description').textContent = breed.description;
         document.getElementById('breed-wiki').href = breed.wikipedia_url;
-    
+
         try {
-            const response = await fetch(`/api/random-cat?breed_ids=${breed.id}&count=5`);  // Fetch 5 images
+            const response = await fetch(`/api/random-cat?breed_ids=${breed.id}&count=5`);
             const breedImages = await response.json();
             if (breedImages.length > 0) {
                 const breedImagesContainer = document.getElementById('breed-images');
                 breedImagesContainer.innerHTML = '';
-    
+
                 breedImages.forEach((img, index) => {
                     const imageElement = document.createElement('img');
                     imageElement.src = img.url;
@@ -169,23 +148,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     imageElement.style.display = index === 0 ? 'block' : 'none';
                     breedImagesContainer.appendChild(imageElement);
                 });
-    
+
                 createImageSlider(breedImagesContainer);
             }
         } catch (error) {
             console.error('Error fetching breed images:', error);
         }
     }
-    
+
     function createImageSlider(container) {
         let currentIndex = 0;
         const images = container.querySelectorAll('img');
-        
+
         setInterval(() => {
             images[currentIndex].style.display = 'none';
             currentIndex = (currentIndex + 1) % images.length;
             images[currentIndex].style.display = 'block';
-        }, 3000);  // Change image every 3 seconds
+        }, 3000);
     }
 
     function handleBreedSearch(e) {
@@ -209,40 +188,137 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function toggleFavorite(cat) {
-        let favorites = JSON.parse(localStorage.getItem('favoriteCats')) || [];
-        const index = favorites.findIndex(favCat => favCat.id === cat.id);
-
-        if (index === -1) {
-            favorites.push(cat);
-            localStorage.setItem('favoriteCats', JSON.stringify(favorites));
-        } else {
-            favorites.splice(index, 1);
-            localStorage.setItem('favoriteCats', JSON.stringify(favorites));
+    async function toggleFavorite(cat) {
+        try {
+            const isFav = await isFavorite(cat.id);
+            let response;
+    
+            if (isFav) {
+                response = await fetch(`/api/favorites/${cat.id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': config.catapi_key
+                    },
+                });
+            } else {
+                response = await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': config.catapi_key
+                    },
+                    body: JSON.stringify({
+                        image_id: cat.id,
+                        sub_id: userId
+                    }),
+                });
+            }
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update favorite');
+            }
+    
+            const result = await response.json();
+            console.log(isFav ? 'Favorite removed:' : 'Favorite added:', result);
+            updateHeartButton(cat.id, !isFav);
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            alert(error.message || 'An error occurred. Please try again later.');
         }
-
-        updateHeartButton(cat.id);
     }
-
-    function isFavorite(catId) {
-        const favorites = JSON.parse(localStorage.getItem('favoriteCats')) || [];
-        return favorites.some(cat => cat.id === catId);
+    
+    async function isFavorite(catId) {
+        try {
+            const response = await fetch(`/api/favorites?sub_id=${userId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('API error:', data.error);
+                return false;
+            }
+            
+            if (!Array.isArray(data)) {
+                console.error('Unexpected API response:', data);
+                return false;
+            }
+            
+            return data.some(fav => fav.image_id === catId);
+        } catch (error) {
+            console.error('Error checking favorite status:', error);
+            return false;
+        }
     }
-
-    function updateHeartButton(catId) {
+    
+    function updateHeartButton(catId, isFav) {
         const heartButton = document.querySelector(`.cat-item[data-id="${catId}"] .heart-button`);
         if (heartButton) {
-            heartButton.innerHTML = isFavorite(catId) ? '❤️' : '♡';
+            heartButton.innerHTML = isFav ? '❤️' : '♡';
+            heartButton.classList.toggle('favorited', isFav);
         }
     }
-
-    function displayFavoriteCats() {
-        const favorites = JSON.parse(localStorage.getItem('favoriteCats')) || [];
-        catContainer.innerHTML = '';
-        favorites.forEach(cat => {
-            const catElement = createCatElement(cat);
-            catContainer.appendChild(catElement);
+    
+    function createCatElement(cat) {
+        const catElement = document.createElement('div');
+        catElement.className = 'cat-item';
+        catElement.dataset.id = cat.id;
+    
+        const img = document.createElement('img');
+        img.src = cat.url;
+        img.alt = 'Cat';
+    
+        const heartButton = document.createElement('button');
+        heartButton.className = 'heart-button';
+        heartButton.innerHTML = '♡';
+        heartButton.addEventListener('click', (event) => {
+            getRandomCats(1);
+            event.stopPropagation();
+            toggleFavorite(cat);
         });
+    
+        catElement.appendChild(img);
+        catElement.appendChild(heartButton);
+    
+        // Check if it's a favorite and update the heart button accordingly
+        isFavorite(cat.id).then(isFav => updateHeartButton(cat.id, isFav));
+    
+        return catElement;
+    }
+    
+    async function displayFavoriteCats() {
+        try {
+            const response = await fetch(`/api/favorites?sub_id=${userId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            if (!Array.isArray(data)) {
+                throw new Error('API response is not an array');
+            }
+    
+            catContainer.innerHTML = '';
+            for (const fav of data) {
+                if (fav.image) {
+                    const catElement = createCatElement(fav.image);
+                    updateHeartButton(fav.image.id, true);
+                    catContainer.appendChild(catElement);
+                } else {
+                    console.warn('Favorite item does not contain image data:', fav);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching favorite cats:', error);
+            alert('Failed to fetch favorite cats: ' + error.message);
+        }
     }
 
     function setupVotingButtons(imageId) {
