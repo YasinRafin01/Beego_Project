@@ -23,7 +23,7 @@ This project implements a web application similar to The Cat API using Beego for
 1. Clone the repository:
    ```
    git clone https://github.com/YasinRafin01/Beego_Project.git
-   cd cat-api-project
+   cd Beego_Project
    ```
 2. Install Beego:
    ```
