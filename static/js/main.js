@@ -254,11 +254,47 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    function updateHeartButton(catId, isFav) {
-        const heartButton = document.querySelector(`.cat-item[data-id="${catId}"] .heart-button`);
+    function updateHeartButton(favoriteId, isFav, imageId) {
+        const heartButton = document.querySelector(`.cat-item[data-id="${imageId}"] .heart-button`);
         if (heartButton) {
             heartButton.innerHTML = isFav ? '❤️' : '♡';
             heartButton.classList.toggle('favorited', isFav);
+            heartButton.onclick = (event) => {
+                event.stopPropagation();
+                if (isFav) {
+                    removeFavorite(favoriteId);
+                } else {
+                    toggleFavorite({ id: imageId });
+                }
+            };
+        }
+    }
+    async function removeFavorite(favoriteId) {
+        try {
+            const response = await fetch(`/api/favorites/${favoriteId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': config.catapi_key
+                },
+            });
+    
+            const responseData = await response.json();
+            console.log('Response:', responseData);
+    
+            if (!response.ok) {
+                throw new Error(responseData.error || 'Failed to remove favorite');
+            }
+    
+            console.log('Favorite removed:', favoriteId);
+            // Remove the cat element from the DOM
+            const catElement = document.querySelector(`.cat-item[data-id="${favoriteId}"]`);
+            if (catElement) {
+                catElement.remove();
+            }
+        } catch (error) {
+            console.error('Error removing favorite:', error);
+            alert(error.message || 'An error occurred. Please try again later.');
         }
     }
     
@@ -273,7 +309,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
         const heartButton = document.createElement('button');
         heartButton.className = 'heart-button';
-        heartButton.innerHTML = '♡';
+        heartButton.innerHTML = '❤️';
         heartButton.addEventListener('click', (event) => {
             getRandomCats(1);
             event.stopPropagation();
@@ -309,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const fav of data) {
                 if (fav.image) {
                     const catElement = createCatElement(fav.image);
-                    updateHeartButton(fav.image.id, true);
+                    updateHeartButton(fav.id, true, fav.image.id);
                     catContainer.appendChild(catElement);
                 } else {
                     console.warn('Favorite item does not contain image data:', fav);
