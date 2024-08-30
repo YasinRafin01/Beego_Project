@@ -18,4 +18,3 @@ func init() {
 	beego.Router("/api/config", &controllers.MainController{}, "get:GetConfig")
 
 }
-
